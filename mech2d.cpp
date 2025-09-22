@@ -1,0 +1,323 @@
+#include "inmost.h"
+
+#define DAT double 
+
+using namespace INMOST;
+
+int N = 0;
+
+// Assuming a uniform Cartesian grid
+// 
+//          node(i,j+1)      face_y(i,j+1)  node(i+1,j+1)
+//                      *--------+--------*
+//                      |                 |
+//                      |                 |
+//                      |                 |
+//          face_x(i,j) +     cell(i,j)   + face_x(i+1,j)
+//                      |                 |
+//                      |                 |
+//                      |                 |
+//                      *--------+--------*
+//              node(i,j)    face_y(i,j)    node(i+1,j)
+//
+//
+//   Therefore, for a NxN square cells grid,
+//   Cell   index range: 0...N-1, 0...N-1
+//   Node   index range: 0...N,   0...N
+//   Face-x index range: 0...N,   0...N-1
+//   Face-y index range: 0...N-1, 0...N
+//
+//   Cell   vars: sigma_xx, sigma_yy
+//   Node   vars: sigma_xy
+//   Face-x vars: u_x
+//   Face-y vars: u_y
+
+
+
+// sol = [ux(0,0) ux(0,1) ... ux(0,N-1) 
+
+int Isxx(int i, int j)
+{
+	if (i < 0 || i > N-1) 
+		std::cout << "Isxx: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N-1)
+		std::cout << "Isxx: wrong j = " << j << " for N = " << N << std::endl;
+	return i*N + j;
+}
+
+int Isyy(int i, int j)
+{
+	if (i < 0 || i > N-1)
+		std::cout << "Isyy: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N-1)
+		std::cout << "Isyy: wrong j = " << j << " for N = " << N << std::endl;
+	return i*N + j + N*N;
+}
+
+int Isxy(int i, int j)
+{
+	if (i < 0 || i > N)
+		std::cout << "Isxy: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "Isxy: wrong j = " << j << " for N = " << N << std::endl;
+	return i*(N+1) + j + N*N*2;
+}
+
+int Iux(int i, int j)
+{
+	if (i < 0 || i > N)
+		std::cout << "Iux: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N-1)
+		std::cout << "Iux: wrong j = " << j << " for N = " << N << std::endl;
+	return (i)*N + j + N * N * 2 + (N + 1) * (N + 1);
+}
+
+int Iuy(int i, int j)
+{
+	if (i < 0 || i > N-1)
+		std::cout << "Iuy: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "Iuy: wrong j = " << j << " for N = " << N << std::endl;
+	return ((i) * (N + 1) + j + N * N * 2 + (N + 1) * (N + 1) + N * (N + 1));
+}
+
+// N = 3, max i,j = 2, 2*3 + 2 = 
+#define _Isxx(i,j) ((i)* N    + j + 0) // max i = N-1, max j = N-1 => max ind = (N-1)*N + N-1 = (N-1)*(N+1) = N*N-1
+#define _Isyy(i,j) ((i)* N    + j + N*N)
+#define _Isxy(i,j) ((i)*(N+1) + j + N*N*2) // max i = N, j = N => max ind = N*(N+1) + N = N*N + 2*N = (N+1)*(N+1) - 1
+//#define Iux(i,j)  ((i)*(N+1) + j + N*N*2 + (N+1)*(N+1)) // max i = 
+//#define Iuy(i,j)  ((i)* N    + j + N*N*2 + (N+1)*(N+1) + N*(N+1))
+#define _Iux(i,j)  ((i)* N    + j + N*N*2 + (N+1)*(N+1))
+#define _Iuy(i,j)  ((i)*(N+1) + j + N*N*2 + (N+1)*(N+1) + N*(N+1))
+#define sxx(i,j) unknown(sol[Isxx(i,j)], Isxx(i,j))
+#define syy(i,j) unknown(sol[Isyy(i,j)], Isyy(i,j))
+#define sxy(i,j) unknown(sol[Isxy(i,j)], Isxy(i,j))
+#define ux(i,j) unknown(sol[Iux(i,j)], Iux(i,j))
+#define uy(i,j) unknown(sol[Iuy(i,j)], Iuy(i,j))
+
+int main(int argc, char* argv[])
+{
+	MPI_Init(&argc, &argv);
+	if (argc < 2) {
+		std::cout << "Usage: mech2d <N>" << std::endl;
+		exit(-1);
+	}
+	/*int*/ N = atoi(argv[1]);
+	double L = 1.0;
+	double dx = L / N, dy = L / N;
+	std::cout << "dx = " << dx << ", dy = " << dy << std::endl;
+
+	const DAT E = 3.5e6;      // Young's modulus, MPa
+	const DAT nu = 0.3;        // Poisson ratio
+	const DAT lam = E * nu / (1 + nu) / (1 - 2 * nu);
+	const DAT mu = E / 2 / (1 + nu);
+
+	// Total number of unknowns:
+	// Cell   ( N   * N   ):     2
+	// Node   ((N+1)*(N+1)):     1
+	// Face_x ( N   *(N+1)):     1
+	// Face_y ( N   *(N+1)):     1
+	int tot_size = N*N*2 + N*(N+1)*2 + (N+1)*(N+1);
+	std::cout << "Total number of unknowns: " << tot_size << std::endl;
+	Residual R("residual", 0, tot_size);
+	Sparse::Vector sol("solution", 0, tot_size);
+
+	R.Clear();
+	// Cell loop
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			variable uxij = 0.0, uxip1j = 0.0, uyij = 0.0, uyijp1 = 0.0;
+			if (i > 0)
+				uxij = ux(i, j);
+			if (i < N+1)
+				uxip1j = ux(i+1, j);
+			if (j > 0)
+				uyij = uy(i, j);
+			if (j < N+1)
+				uyijp1 = uy(i, j+1);
+			variable duxdx = (uxip1j - uxij) / dx;
+			variable duydy = (uyijp1 - uyij) / dy;
+			R[Isxx(i, j)] = sxx(i, j) - (2 * mu + lam) * duxdx + lam * duydy;
+			R[Isyy(i, j)] = syy(i, j) - (2 * mu + lam) * duydy + lam * duxdx;
+			//R[Isxx(i, j)] = sxx(i, j) - 1;
+			//R[Isyy(i, j)] = syy(i, j) - 2;
+		}
+	}
+	// Node loop
+	for (int i = 0; i < N + 1; i++) {
+		for (int j = 0; j < N+1; j++) {
+			// For dux/dy, duy/dx
+			// we need: ux(i,j), ux(i,j-1), uy(i,j), uy(i-1,j)
+			variable uxij = 0.0, uxijm1 = 0.0, uyij = 0.0, uyim1j = 0.0;
+			if (j < N)
+				uxij = ux(i,j);
+			if (j > 0)
+				uxijm1 = ux(i,j-1);
+			if (i < N)
+				uyij = uy(i,j);
+			if (i > 0)
+				uyim1j = uy(i-1,j);
+
+			variable duxdy = (uxij - uxijm1) / dy;
+			variable duydx = (uyij - uyim1j) / dx;
+			R[Isxy(i, j)] = sxy(i, j) - mu * (duxdy + duydx);
+			//R[Isxy(i, j)] = sxy(i, j) - 3;
+		}
+	}
+	// Face-x loop
+	for (int i = 0; i < N+1; i++) {
+		for (int j = 0; j < N; j++) {
+			if (i > 0 && i < N && j > 0 && j < N-1) {
+				variable dsxxdx = (sxx(i, j  ) - sxx(i-1, j)) / dx;
+				variable dsxydy = (sxy(i, j+1) - sxy(i,   j)) / dy;
+				R[Iux(i, j)] = dsxxdx + dsxydy - 0.0;
+				double x = i * dx;
+				//R[Iux(i, j)] = ux(i, j);// -x * (1 - x);
+			}
+			else
+				R[Iux(i, j)] = ux(i,j);
+		}
+	}
+	// Face-y loop
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N+1; j++) {
+			if (j > 0 && j < N && i > 0 && i < N-1) {
+				variable dsyydy = (syy(i,   j) - syy(i, j-1)) / dy;
+				variable dsxydx = (sxy(i+1, j) - sxy(i, j  )) / dx;
+				R[Iuy(i, j)] = dsyydy + dsxydx - 1.0;
+				double x = (i + 0.5) * dx;
+				double y = j * dy;
+				//R[Iuy(i, j)] = uy(i, j);// -x * (1 - x) * y * (1 - y);
+			}
+			else
+				R[Iuy(i, j)] = uy(i,j);
+		}
+	}
+	std::cout << "System is assembled" << std::endl;
+
+	R.GetJacobian().Save("J.mtx");
+
+	Solver S("inner_mptiluc");
+	S.SetParameter("drop_tolerance", "0e-6");
+	S.SetParameter("maximum_iterations", "10000");
+	S.SetMatrix(R.GetJacobian());
+	bool solved = S.Solve(R.GetResidual(), sol);
+	if (!solved){
+		std::cout << "Linear solver failed: " << S.GetReason() << std::endl;
+		std::cout << "Residual: " << S.Residual() << std::endl;
+		exit(-1);
+	}
+	std::cout << "Lin.it:   " << S.Iterations() << std::endl;
+	std::cout << "Residual: " << S.Residual() << std::endl;
+
+	double solmax = 0.0;
+	for (unsigned i = 0; i < sol.Size(); i++) {
+		sol[i] = -sol[i];
+		solmax = std::max(solmax, abs(sol[i]));
+	}
+	std::cout << "Max. abs. val. in sol = " << solmax << std::endl;
+
+	// ===================================================================================
+	// Save VTK with results (legacy code)
+	std::ofstream out;
+	out.open("res.vtk");
+	if (!out.is_open()) {
+		std::cout << "Couldn't open file res.vtk!";
+		exit(0);
+	}
+	int nx = N, ny = N;
+	out << "# vtk DataFile Version 3.0" << std::endl << std::endl;
+	out << "ASCII" << std::endl;
+	out << "DATASET STRUCTURED_GRID" << std::endl;
+	out << "DIMENSIONS " << nx + 1 << " " << ny + 1 << " 1" << std::endl;
+	out << "POINTS " << (nx + 1) * (ny + 1) << " DOUBLE" << std::endl;
+	for (int j = 0; j <= ny; j++) {
+		for (int i = 0; i <= nx; i++) {
+			double uxij = 0.0, uxijm1 = 0.0;
+			double uyij = 0.0, uyim1j = 0.0;
+			if (i < nx && j < ny)
+				uxij = sol[Iux(i, j)];
+			if (i < nx && j > 0)
+				uxijm1 = sol[Iux(i, j - 1)];
+			if (i < nx && j < ny)
+				uyij = sol[Iuy(i, j)];
+			if (i > 0 && j < ny)
+				uyim1j = sol[Iuy(i - 1, j)];
+
+			double a = 0.0;
+			double ux = 0.5 * (uxij + uxijm1);
+			double uy = 0.5 * (uyij + uyim1j);
+			out << i * dx + uy*a << " " << j * dy + uy*a<< " 0.0" << std::endl;
+		}
+	}
+
+	out << "CELL_DATA " << nx * ny << std::endl;
+
+
+	out << "SCALARS Stress_yy double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int j = 0; j < ny; j++) {
+		for (int i = 0; i < nx; i++) {
+			out << sol[Isyy(i,j)] << std::endl;
+		}
+	}
+
+	out << "SCALARS Stress_xx double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int j = 0; j < ny; j++) {
+		for (int i = 0; i < nx; i++) {
+			out << sol[Isxx(i,j)] << std::endl;
+		}
+	}
+
+	// Values in cell are averaged from cell nodes
+	out << "SCALARS Txy double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int j = 0; j < ny; j++) {
+		for (int i = 0; i < nx; i++) {
+			//out << 0.25 * (Txy[i + j * (nx + 1)] + Txy[i + j * (nx + 1)]
+			//	+ Txy[i + 1 + j * (nx + 1)] + Txy[i + (j + 1) * (nx + 1)]) << std::endl;
+			out << 0.25 * (sol[Isxy(i,j)] + sol[Isxy(i+1, j)]
+				+ sol[Isxy(i, j+1)] + sol[Isxy(i+1, j+1)]) << std::endl;
+		}
+	}
+
+	out << "POINT_DATA " << (nx+1) * (ny+1) << std::endl;
+
+	out << "VECTORS Displacement double" << std::endl;
+	for (int j = 0; j < ny+1; j++) {
+		for (int i = 0; i < nx+1; i++) {
+    
+//          face_x(i,j) +     
+//                      |       
+//                      |       
+//                      |         
+//            -+--------*--------+-
+//  face_y(i-1,j)   node(i,j)    face_y(i,j) 
+//						|
+//						|
+//						+
+//                    face_x(i,j-1)
+			double uxij = 0.0, uxijm1 = 0.0;
+			double uyij = 0.0, uyim1j = 0.0;
+			if (i < nx && j < ny)
+				uxij = sol[Iux(i,j)]; 
+			if (i < nx && j > 0)
+				uxijm1 = sol[Iux(i,j-1)];
+			if (i < nx && j < ny)
+				uyij = sol[Iuy(i,j)];
+			if (i > 0 && j < ny)
+				uyim1j = sol[Iuy(i-1,j)];
+
+			double ux = 0.5 * (uxij + uxijm1);
+			double uy = 0.5 * (uyij + uyim1j);
+
+			out <<  ux << " " << uy << " 0.0" << std::endl;
+		}
+	}
+
+	out.close();
+
+	std::cout << "Success!" << std::endl;
+	return 0;
+}
