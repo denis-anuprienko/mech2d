@@ -239,20 +239,8 @@ void Problem::saveVTK()
 	out.close();
 }
 
-void Problem::run()
+void Problem::fillResidual(Residual &R)
 {
-	
-
-	// Total number of unknowns:
-	// Cell   ( N   * N   ):     2
-	// Node   ((N+1)*(N+1)):     1
-	// Face_x ( N   *(N+1)):     1
-	// Face_y ( N   *(N+1)):     1
-	int tot_size = N*N*2 + N*(N+1)*2 + (N+1)*(N+1);
-	std::cout << "Total number of unknowns: " << tot_size << std::endl;
-	Residual R("residual", 0, tot_size);
-	sol = Sparse::Vector("solution", 0, tot_size);
-
 	R.Clear();
 	// --------------------------------- Cell loop
 	// Equations for sxx, syy:
@@ -337,29 +325,75 @@ void Problem::run()
 				R[Iuy(i, j)] = uy(i,j);
 		}
 	}
-	std::cout << "System is assembled" << std::endl;
+	//std::cout << "System is assembled" << std::endl;
+}
 
-	R.GetJacobian().Save("J.mtx");
+void Problem::run()
+{
+	// Total number of unknowns:
+	// Cell   ( N   * N   ):     2
+	// Node   ((N+1)*(N+1)):     1
+	// Face_x ( N   *(N+1)):     1
+	// Face_y ( N   *(N+1)):     1
+	int tot_size = N*N*2 + N*(N+1)*2 + (N+1)*(N+1);
+	std::cout << "Total number of unknowns: " << tot_size << std::endl;
+	Residual R("residual", 0, tot_size);
+	sol = Sparse::Vector("solution", 0, tot_size);
+	Sparse::Vector update = Sparse::Vector("newton_update", 0, tot_size);
 
 	Solver S("inner_mptiluc");
-	S.SetParameter("drop_tolerance", "0e-6");
+	S.SetParameter("drop_tolerance", "1e-6");
+	S.SetParameter("absolute_tolerance", "1e-15");
+	S.SetParameter("relative_tolerance", "1e-10");
 	S.SetParameter("maximum_iterations", "10000");
-	S.SetMatrix(R.GetJacobian());
-	bool solved = S.Solve(R.GetResidual(), sol);
-	if (!solved){
-		std::cout << "Linear solver failed: " << S.GetReason() << std::endl;
-		std::cout << "Residual: " << S.Residual() << std::endl;
+
+
+	// ============================== Newton loop
+	std::cout << std::endl << "Starting Newton loop" << std::endl;
+	double r = 1.0, r0 = 1.0;
+	bool converged = false;
+	int maxit = 20;
+	double rtol = 1e-6, atol = 1e-8, divtol = 1e10;
+	for(int nit = 0; nit < maxit; nit++){
+		fillResidual(R);
+		//R.GetJacobian().Save("J.mtx");
+
+		// Convergence check
+		r = R.Norm();
+		if(nit == 0)
+			r0 = r;
+		std:: cout << "  iter " << nit << ", |r|_2 = " << r << std::endl;
+		if(r < atol || r < rtol * r0){
+			std::cout << "Newton converged!" << std:: endl;
+			converged = true;
+			break;
+		}
+		if(r > divtol){
+			std::cout << "Newton diverged!" << std:: endl;
+			break;
+		}
+
+		S.SetMatrix(R.GetJacobian());
+		bool solved = S.Solve(R.GetResidual(), update);
+		if (!solved){
+			std::cout << "Linear solver failed: " << S.GetReason() << std::endl;
+			std::cout << "Residual: " << S.Residual() << std::endl;
+			exit(-1);
+		}
+		//std::cout << "Lin.it:   " << S.Iterations() << std::endl;
+		//std::cout << "Residual: " << S.Residual() << std::endl;
+
+		//double solmax = 0.0;
+		for (unsigned i = 0; i < sol.Size(); i++) {
+			sol[i] -= update[i];
+			//solmax = std::max(solmax, abs(sol[i]));
+		}
+		//std::cout << "Max. abs. val. in sol = " << solmax << std::endl;
+	}
+	if(!converged){
+		std::cout << "Newton failed to converge" << std::endl;
 		exit(-1);
 	}
-	std::cout << "Lin.it:   " << S.Iterations() << std::endl;
-	std::cout << "Residual: " << S.Residual() << std::endl;
-
-	double solmax = 0.0;
-	for (unsigned i = 0; i < sol.Size(); i++) {
-		sol[i] = -sol[i];
-		solmax = std::max(solmax, abs(sol[i]));
-	}
-	std::cout << "Max. abs. val. in sol = " << solmax << std::endl;
 }
 
 int main(int argc, char* argv[])
