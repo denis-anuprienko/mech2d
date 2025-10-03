@@ -4,8 +4,6 @@
 
 using namespace INMOST;
 
-int N = 0;
-
 // Assuming a uniform Cartesian grid
 // 
 //          node(i,j+1)      face_y(i,j+1)  node(i+1,j+1)
@@ -32,11 +30,66 @@ int N = 0;
 //   Face-x vars: u_x
 //   Face-y vars: u_y
 
+class Problem
+{
+private:
+	// =====================================================================================================
+	// Problem parameters: discretization and physical parameters
+	int N;
+	double dx;
+	double dy;
+	const double Lx = 1.0;
+	const double Ly = Lx;
+	const double E = 3.5e6;                               // Young's modulus, MPa
+	const double nu = 0.3;                                // Poisson ratio
+	const double lam = E * nu / (1 + nu) / (1 - 2 * nu);  // Lame parameter lambda
+	const double mu = E / 2 / (1 + nu);                   // Lame parameter mu
 
 
-// sol = [ux(0,0) ux(0,1) ... ux(0,N-1) 
+	// =====================================================================================================
+	// INMOST functionality
+	/// Solution vector that contains all the unknowns: sigma_xx, sigma_yy, sigma_xy, u_x, u_y
+	INMOST::Sparse::Vector sol;
+	/// Linear solver for systems with Jacobian matrix
+	//INMOST::Solver S;
+	/// Nonlinear residual
+	//INMOST::Residual R;
 
-int Isxx(int i, int j)
+
+	// =====================================================================================================
+	// Index functions that map (i,j) for a specific unknown to the position in the global vector 'sol'
+	int Isxx(int i, int j); // sigma_xx
+	int Isyy(int i, int j); // sigma_yy
+	int Isxy(int i, int j); // sigma_xy
+	int Iux(int i, int j);  // u_x
+	int Iuy(int i, int j);  // u_y
+
+
+	// =====================================================================================================
+	// Functions that construct unknonwns from given locations in 'sol'
+	unknown sxx(int i, int j) { return unknown(sol[Isxx(i,j)], Isxx(i,j)); }
+	unknown syy(int i, int j) { return unknown(sol[Isyy(i,j)], Isyy(i,j)); }
+	unknown sxy(int i, int j) { return unknown(sol[Isxy(i,j)], Isxy(i,j)); }
+	unknown ux(int i, int j)  { return unknown(sol[Iux(i,j)],  Iux(i,j));  }
+	unknown uy(int i, int j)  { return unknown(sol[Iuy(i,j)],  Iuy(i,j));  }
+
+
+
+public:
+	Problem(int N_)
+	{
+		N = N_;
+		dx = Lx / N;
+		dy = Ly / N;
+	}
+	~Problem() {}
+	void run();
+	void fillResidual(Residual &R);
+	void saveVTK();
+};
+
+
+int Problem::Isxx(int i, int j)
 {
 	if (i < 0 || i > N-1) 
 		std::cout << "Isxx: wrong i = " << i << " for N = " << N << std::endl;
@@ -45,7 +98,7 @@ int Isxx(int i, int j)
 	return i*N + j;
 }
 
-int Isyy(int i, int j)
+int Problem::Isyy(int i, int j)
 {
 	if (i < 0 || i > N-1)
 		std::cout << "Isyy: wrong i = " << i << " for N = " << N << std::endl;
@@ -54,7 +107,7 @@ int Isyy(int i, int j)
 	return i*N + j + N*N;
 }
 
-int Isxy(int i, int j)
+int Problem::Isxy(int i, int j)
 {
 	if (i < 0 || i > N)
 		std::cout << "Isxy: wrong i = " << i << " for N = " << N << std::endl;
@@ -63,7 +116,7 @@ int Isxy(int i, int j)
 	return i*(N+1) + j + N*N*2;
 }
 
-int Iux(int i, int j)
+int Problem::Iux(int i, int j)
 {
 	if (i < 0 || i > N)
 		std::cout << "Iux: wrong i = " << i << " for N = " << N << std::endl;
@@ -72,7 +125,7 @@ int Iux(int i, int j)
 	return (i)*N + j + N * N * 2 + (N + 1) * (N + 1);
 }
 
-int Iuy(int i, int j)
+int Problem::Iuy(int i, int j)
 {
 	if (i < 0 || i > N-1)
 		std::cout << "Iuy: wrong i = " << i << " for N = " << N << std::endl;
@@ -81,142 +134,9 @@ int Iuy(int i, int j)
 	return ((i) * (N + 1) + j + N * N * 2 + (N + 1) * (N + 1) + N * (N + 1));
 }
 
-// N = 3, max i,j = 2, 2*3 + 2 = 
-#define _Isxx(i,j) ((i)* N    + j + 0) // max i = N-1, max j = N-1 => max ind = (N-1)*N + N-1 = (N-1)*(N+1) = N*N-1
-#define _Isyy(i,j) ((i)* N    + j + N*N)
-#define _Isxy(i,j) ((i)*(N+1) + j + N*N*2) // max i = N, j = N => max ind = N*(N+1) + N = N*N + 2*N = (N+1)*(N+1) - 1
-//#define Iux(i,j)  ((i)*(N+1) + j + N*N*2 + (N+1)*(N+1)) // max i = 
-//#define Iuy(i,j)  ((i)* N    + j + N*N*2 + (N+1)*(N+1) + N*(N+1))
-#define _Iux(i,j)  ((i)* N    + j + N*N*2 + (N+1)*(N+1))
-#define _Iuy(i,j)  ((i)*(N+1) + j + N*N*2 + (N+1)*(N+1) + N*(N+1))
-#define sxx(i,j) unknown(sol[Isxx(i,j)], Isxx(i,j))
-#define syy(i,j) unknown(sol[Isyy(i,j)], Isyy(i,j))
-#define sxy(i,j) unknown(sol[Isxy(i,j)], Isxy(i,j))
-#define ux(i,j) unknown(sol[Iux(i,j)], Iux(i,j))
-#define uy(i,j) unknown(sol[Iuy(i,j)], Iuy(i,j))
-
-int main(int argc, char* argv[])
+void Problem::saveVTK()
 {
-	MPI_Init(&argc, &argv);
-	if (argc < 2) {
-		std::cout << "Usage: mech2d <N>" << std::endl;
-		exit(-1);
-	}
-	/*int*/ N = atoi(argv[1]);
-	double L = 1.0;
-	double dx = L / N, dy = L / N;
-	std::cout << "dx = " << dx << ", dy = " << dy << std::endl;
-
-	const DAT E = 3.5e6;      // Young's modulus, MPa
-	const DAT nu = 0.3;        // Poisson ratio
-	const DAT lam = E * nu / (1 + nu) / (1 - 2 * nu);
-	const DAT mu = E / 2 / (1 + nu);
-
-	// Total number of unknowns:
-	// Cell   ( N   * N   ):     2
-	// Node   ((N+1)*(N+1)):     1
-	// Face_x ( N   *(N+1)):     1
-	// Face_y ( N   *(N+1)):     1
-	int tot_size = N*N*2 + N*(N+1)*2 + (N+1)*(N+1);
-	std::cout << "Total number of unknowns: " << tot_size << std::endl;
-	Residual R("residual", 0, tot_size);
-	Sparse::Vector sol("solution", 0, tot_size);
-
-	R.Clear();
-	// Cell loop
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N; j++) {
-			variable uxij = 0.0, uxip1j = 0.0, uyij = 0.0, uyijp1 = 0.0;
-			if (i > 0)
-				uxij = ux(i, j);
-			if (i < N+1)
-				uxip1j = ux(i+1, j);
-			if (j > 0)
-				uyij = uy(i, j);
-			if (j < N+1)
-				uyijp1 = uy(i, j+1);
-			variable duxdx = (uxip1j - uxij) / dx;
-			variable duydy = (uyijp1 - uyij) / dy;
-			R[Isxx(i, j)] = sxx(i, j) - (2 * mu + lam) * duxdx + lam * duydy;
-			R[Isyy(i, j)] = syy(i, j) - (2 * mu + lam) * duydy + lam * duxdx;
-			//R[Isxx(i, j)] = sxx(i, j) - 1;
-			//R[Isyy(i, j)] = syy(i, j) - 2;
-		}
-	}
-	// Node loop
-	for (int i = 0; i < N + 1; i++) {
-		for (int j = 0; j < N+1; j++) {
-			// For dux/dy, duy/dx
-			// we need: ux(i,j), ux(i,j-1), uy(i,j), uy(i-1,j)
-			variable uxij = 0.0, uxijm1 = 0.0, uyij = 0.0, uyim1j = 0.0;
-			if (j < N)
-				uxij = ux(i,j);
-			if (j > 0)
-				uxijm1 = ux(i,j-1);
-			if (i < N)
-				uyij = uy(i,j);
-			if (i > 0)
-				uyim1j = uy(i-1,j);
-
-			variable duxdy = (uxij - uxijm1) / dy;
-			variable duydx = (uyij - uyim1j) / dx;
-			R[Isxy(i, j)] = sxy(i, j) - mu * (duxdy + duydx);
-			//R[Isxy(i, j)] = sxy(i, j) - 3;
-		}
-	}
-	// Face-x loop
-	for (int i = 0; i < N+1; i++) {
-		for (int j = 0; j < N; j++) {
-			if (i > 0 && i < N && j > 0 && j < N-1) {
-				variable dsxxdx = (sxx(i, j  ) - sxx(i-1, j)) / dx;
-				variable dsxydy = (sxy(i, j+1) - sxy(i,   j)) / dy;
-				R[Iux(i, j)] = dsxxdx + dsxydy - 0.0;
-				double x = i * dx;
-				//R[Iux(i, j)] = ux(i, j);// -x * (1 - x);
-			}
-			else
-				R[Iux(i, j)] = ux(i,j);
-		}
-	}
-	// Face-y loop
-	for (int i = 0; i < N; i++) {
-		for (int j = 0; j < N+1; j++) {
-			if (j > 0 && j < N && i > 0 && i < N-1) {
-				variable dsyydy = (syy(i,   j) - syy(i, j-1)) / dy;
-				variable dsxydx = (sxy(i+1, j) - sxy(i, j  )) / dx;
-				R[Iuy(i, j)] = dsyydy + dsxydx - 1.0;
-				double x = (i + 0.5) * dx;
-				double y = j * dy;
-				//R[Iuy(i, j)] = uy(i, j);// -x * (1 - x) * y * (1 - y);
-			}
-			else
-				R[Iuy(i, j)] = uy(i,j);
-		}
-	}
-	std::cout << "System is assembled" << std::endl;
-
-	R.GetJacobian().Save("J.mtx");
-
-	Solver S("inner_mptiluc");
-	S.SetParameter("drop_tolerance", "0e-6");
-	S.SetParameter("maximum_iterations", "10000");
-	S.SetMatrix(R.GetJacobian());
-	bool solved = S.Solve(R.GetResidual(), sol);
-	if (!solved){
-		std::cout << "Linear solver failed: " << S.GetReason() << std::endl;
-		std::cout << "Residual: " << S.Residual() << std::endl;
-		exit(-1);
-	}
-	std::cout << "Lin.it:   " << S.Iterations() << std::endl;
-	std::cout << "Residual: " << S.Residual() << std::endl;
-
-	double solmax = 0.0;
-	for (unsigned i = 0; i < sol.Size(); i++) {
-		sol[i] = -sol[i];
-		solmax = std::max(solmax, abs(sol[i]));
-	}
-	std::cout << "Max. abs. val. in sol = " << solmax << std::endl;
-
+	
 	// ===================================================================================
 	// Save VTK with results (legacy code)
 	std::ofstream out;
@@ -317,6 +237,142 @@ int main(int argc, char* argv[])
 	}
 
 	out.close();
+}
+
+void Problem::run()
+{
+	
+
+	// Total number of unknowns:
+	// Cell   ( N   * N   ):     2
+	// Node   ((N+1)*(N+1)):     1
+	// Face_x ( N   *(N+1)):     1
+	// Face_y ( N   *(N+1)):     1
+	int tot_size = N*N*2 + N*(N+1)*2 + (N+1)*(N+1);
+	std::cout << "Total number of unknowns: " << tot_size << std::endl;
+	Residual R("residual", 0, tot_size);
+	sol = Sparse::Vector("solution", 0, tot_size);
+
+	R.Clear();
+	// --------------------------------- Cell loop
+	// Equations for sxx, syy:
+	// 
+	// sigma = C u (diagonal parts)
+	//
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			variable uxij = 0.0, uxip1j = 0.0, uyij = 0.0, uyijp1 = 0.0;
+			if (i > 0)
+				uxij = ux(i, j);
+			if (i < N+1)
+				uxip1j = ux(i+1, j);
+			if (j > 0)
+				uyij = uy(i, j);
+			if (j < N+1)
+				uyijp1 = uy(i, j+1);
+			variable duxdx = (uxip1j - uxij) / dx;
+			variable duydy = (uyijp1 - uyij) / dy;
+			R[Isxx(i, j)] = sxx(i, j) - (2 * mu + lam) * duxdx + lam * duydy;
+			R[Isyy(i, j)] = syy(i, j) - (2 * mu + lam) * duydy + lam * duxdx;
+		}
+	}
+
+	// --------------------------------- Node loop
+	// Equations for sxy:
+	//
+	// sigma = C u (diagonal parts)
+	//
+	for (int i = 0; i < N + 1; i++) {
+		for (int j = 0; j < N+1; j++) {
+			// For dux/dy, duy/dx
+			// we need: ux(i,j), ux(i,j-1), uy(i,j), uy(i-1,j)
+			variable uxij = 0.0, uxijm1 = 0.0, uyij = 0.0, uyim1j = 0.0;
+			if (j < N)
+				uxij = ux(i,j);
+			if (j > 0)
+				uxijm1 = ux(i,j-1);
+			if (i < N)
+				uyij = uy(i,j);
+			if (i > 0)
+				uyim1j = uy(i-1,j);
+
+			variable duxdy = (uxij - uxijm1) / dy;
+			variable duydx = (uyij - uyim1j) / dx;
+			R[Isxy(i, j)] = sxy(i, j) - mu * (duxdy + duydx);
+			//R[Isxy(i, j)] = sxy(i, j) - 3;
+		}
+	}
+
+	// --------------------------------- Face-x loop
+	// Equations for u_x
+	//
+	// div sigma = -F     (x-coordinate, F_x = 0)
+	for (int i = 0; i < N+1; i++) {
+		for (int j = 0; j < N; j++) {
+			if (i > 0 && i < N && j > 0 && j < N-1) {
+				variable dsxxdx = (sxx(i, j  ) - sxx(i-1, j)) / dx;
+				variable dsxydy = (sxy(i, j+1) - sxy(i,   j)) / dy;
+				R[Iux(i, j)] = dsxxdx + dsxydy - 0.0;
+			}
+			else
+				R[Iux(i, j)] = ux(i,j);
+		}
+	}
+
+	// --------------------------------- Face-y loop
+	// Equations for u_y
+	//
+	// div sigma = -F     (y-coordinate, F_y = -1)
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N+1; j++) {
+			if (j > 0 && j < N && i > 0 && i < N-1) {
+				variable dsyydy = (syy(i,   j) - syy(i, j-1)) / dy;
+				variable dsxydx = (sxy(i+1, j) - sxy(i, j  )) / dx;
+				R[Iuy(i, j)] = dsyydy + dsxydx - 1.0;
+				double x = (i + 0.5) * dx;
+				double y = j * dy;
+				//R[Iuy(i, j)] = uy(i, j);// -x * (1 - x) * y * (1 - y);
+			}
+			else
+				R[Iuy(i, j)] = uy(i,j);
+		}
+	}
+	std::cout << "System is assembled" << std::endl;
+
+	R.GetJacobian().Save("J.mtx");
+
+	Solver S("inner_mptiluc");
+	S.SetParameter("drop_tolerance", "0e-6");
+	S.SetParameter("maximum_iterations", "10000");
+	S.SetMatrix(R.GetJacobian());
+	bool solved = S.Solve(R.GetResidual(), sol);
+	if (!solved){
+		std::cout << "Linear solver failed: " << S.GetReason() << std::endl;
+		std::cout << "Residual: " << S.Residual() << std::endl;
+		exit(-1);
+	}
+	std::cout << "Lin.it:   " << S.Iterations() << std::endl;
+	std::cout << "Residual: " << S.Residual() << std::endl;
+
+	double solmax = 0.0;
+	for (unsigned i = 0; i < sol.Size(); i++) {
+		sol[i] = -sol[i];
+		solmax = std::max(solmax, abs(sol[i]));
+	}
+	std::cout << "Max. abs. val. in sol = " << solmax << std::endl;
+}
+
+int main(int argc, char* argv[])
+{
+	MPI_Init(&argc, &argv);
+	if (argc < 2) {
+		std::cout << "Usage: mech2d <N>" << std::endl;
+		exit(-1);
+	}
+
+	Problem P(atoi(argv[1]));
+	P.run();
+	P.saveVTK();
 
 	std::cout << "Success!" << std::endl;
 	return 0;
