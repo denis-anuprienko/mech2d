@@ -54,6 +54,9 @@ private:
 	// INMOST functionality
 	/// Solution vector that contains all the unknowns: 
 	/// sigma_xx, sigma_yy, sigma_zz, sigma_xy, sigma_xz, sigma_yz, sigma_yx, sigma_zx, sigma_zy, u_x, u_y, u_z
+	/// then new: Uxx, Uyy, Uzz, Uxy, Uxz, Uyz, Uyx, Uzx, Uzy
+	/// 		  Bxx, Byy, Bzz, Bxy, Bxz, Byz, Byx, Bzx, Bzy
+	///			  mxy, mxz, myz 
 	INMOST::Sparse::Vector sol;
 	/// Linear solver for systems with Jacobian matrix
 	//INMOST::Solver S;
@@ -75,7 +78,28 @@ private:
 	int Iux(int i, int j, int k);  // u_x
 	int Iuy(int i, int j, int k);  // u_y
 	int Iuz(int i, int j, int k);  // u_z
-
+	// New ones
+	int IUxx(int i, int j, int k); // U_xx
+	int IUyy(int i, int j, int k); // U_yy
+	int IUzz(int i, int j, int k); // U_zz
+	int IUxy(int i, int j, int k); // U_xy
+	int IUxz(int i, int j, int k); // U_xz
+	int IUyz(int i, int j, int k); // U_yz
+	int IUyx(int i, int j, int k); // U_yx
+	int IUzx(int i, int j, int k); // U_zx
+	int IUzy(int i, int j, int k); // U_zy
+	int IBxx(int i, int j, int k); // B_xx
+	int IByy(int i, int j, int k); // B_yy
+	int IBzz(int i, int j, int k); // B_zz
+	int IBxy(int i, int j, int k); // B_xy
+	int IBxz(int i, int j, int k); // B_xz
+	int IByz(int i, int j, int k); // B_yz
+	int IByx(int i, int j, int k); // B_yx
+	int IBzx(int i, int j, int k); // B_zx
+	int IBzy(int i, int j, int k); // B_zy
+	int Imxy(int i, int j, int k); // m_xy
+	int Imxz(int i, int j, int k); // m_xz
+	int Imyz(int i, int j, int k); // m_yz
 
 	// =====================================================================================================
 	// Functions that construct unknonwns from given locations in 'sol'
@@ -91,6 +115,28 @@ private:
 	unknown ux(int i, int j, int k)  { return unknown(sol[Iux(i,j,k)],  Iux(i,j,k));  }
 	unknown uy(int i, int j, int k)  { return unknown(sol[Iuy(i,j,k)],  Iuy(i,j,k));  }
 	unknown uz(int i, int j, int k)  { return unknown(sol[Iuz(i,j,k)],  Iuz(i,j,k));  }
+	// New ones
+	unknown Uxx(int i, int j, int k) { return unknown(sol[IUxx(i,j,k)], IUxx(i,j,k)); }
+	unknown Uyy(int i, int j, int k) { return unknown(sol[IUyy(i,j,k)], IUyy(i,j,k)); }
+	unknown Uzz(int i, int j, int k) { return unknown(sol[IUzz(i,j,k)], IUzz(i,j,k)); }
+	unknown Uxy(int i, int j, int k) { return unknown(sol[IUxy(i,j,k)], IUxy(i,j,k)); }
+	unknown Uxz(int i, int j, int k) { return unknown(sol[IUxz(i,j,k)], IUxz(i,j,k)); }
+	unknown Uyz(int i, int j, int k) { return unknown(sol[IUyz(i,j,k)], IUyz(i,j,k)); }
+	unknown Uyx(int i, int j, int k) { return unknown(sol[IUyx(i,j,k)], IUyx(i,j,k)); }
+	unknown Uzx(int i, int j, int k) { return unknown(sol[IUzx(i,j,k)], IUzx(i,j,k)); }
+	unknown Uzy(int i, int j, int k) { return unknown(sol[IUzy(i,j,k)], IUzy(i,j,k)); }
+	unknown Bxx(int i, int j, int k) { return unknown(sol[IBxx(i,j,k)], IBxx(i,j,k)); }
+	unknown Byy(int i, int j, int k) { return unknown(sol[IByy(i,j,k)], IByy(i,j,k)); }
+	unknown Bzz(int i, int j, int k) { return unknown(sol[IBzz(i,j,k)], IBzz(i,j,k)); }
+	unknown Bxy(int i, int j, int k) { return unknown(sol[IBxy(i,j,k)], IBxy(i,j,k)); }
+	unknown Bxz(int i, int j, int k) { return unknown(sol[IBxz(i,j,k)], IBxz(i,j,k)); }
+	unknown Byz(int i, int j, int k) { return unknown(sol[IByz(i,j,k)], IByz(i,j,k)); }
+	unknown Byx(int i, int j, int k) { return unknown(sol[IByx(i,j,k)], IByx(i,j,k)); }
+	unknown Bzx(int i, int j, int k) { return unknown(sol[IBzx(i,j,k)], IBzx(i,j,k)); }
+	unknown Bzy(int i, int j, int k) { return unknown(sol[IBzy(i,j,k)], IBzy(i,j,k)); }
+	unknown mxy(int i, int j, int k) { return unknown(sol[Imxy(i,j,k)], Imxy(i,j,k)); }
+	unknown mxz(int i, int j, int k) { return unknown(sol[Imxz(i,j,k)], Imxz(i,j,k)); }
+	unknown myz(int i, int j, int k) { return unknown(sol[Imyz(i,j,k)], Imyz(i,j,k)); }
 
 
 
@@ -242,6 +288,266 @@ int Problem::Iuz(int i, int j, int k)
 	return (i*N + j)*N + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*6 + N*N*(N+1)*2;
 }
 
+// +=============================================================================================================+
+// |                                                                                                             |
+// |                                                                                                             |
+// |                N E W      U N K N O W N S     I N D I C E S                                                 |
+// |                                                                                                             |
+// |                                                                                                             |
+// +=============================================================================================================+
+
+int Problem::IUxx(int i, int j, int k)
+{
+	if (i < 0 || i > N-1) 
+		std::cout << "IUxx: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N-1)
+		std::cout << "IUxx: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N-1)
+		std::cout << "IUxx: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*3 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*6
+	+ (i*N + j)*N + k;
+}
+
+int Problem::IUyy(int i, int j, int k)
+{
+	if (i < 0 || i > N-1)
+		std::cout << "IUyy: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N-1)
+		std::cout << "IUyy: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N-1)
+		std::cout << "IUyy: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*3 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*6
+	+ (i*N + j)*N + k + N*N*N;
+}
+
+int Problem::IUzz(int i, int j, int k)
+{
+	if (i < 0 || i > N-1)
+		std::cout << "IUzz: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N-1)
+		std::cout << "IUzz: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N-1)
+		std::cout << "IUzz: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*3 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*6
+	+ (i*N + j)*N + k + N*N*N*2;
+}
+
+int Problem::IUxy(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "IUxy: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "IUxy: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "IUxy: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*3 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*6
+	+ (i*(N+1) + j)*(N+1) + k + N*N*N*3;
+}
+
+int Problem::IUxz(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "IUxz: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "IUxz: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "IUxz: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*3 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*6
+	+ (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1);
+}
+
+int Problem::IUyz(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "IUyz: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "IUyz: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "IUyz: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*3 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*6
+	+ (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*2;
+}
+
+int Problem::IUyx(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "IUyx: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "IUyx: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "IUyx: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*3 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*6
+	+ (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*3;
+}
+
+int Problem::IUzx(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "IUzx: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "IUzx: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "IUzx: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*3 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*6
+	+ (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*4;
+}
+
+int Problem::IUzy(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "IUzy: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "IUzy: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "IUzy: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*3 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*6
+	+ (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*5;
+}
+
+int Problem::IBxx(int i, int j, int k)
+{
+	if (i < 0 || i > N-1) 
+		std::cout << "IBxx: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N-1)
+		std::cout << "IBxx: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N-1)
+		std::cout << "IBxx: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*6 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*12
+	+ (i*N + j)*N + k;
+}
+
+int Problem::IByy(int i, int j, int k)
+{
+	if (i < 0 || i > N-1)
+		std::cout << "IByy: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N-1)
+		std::cout << "IByy: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N-1)
+		std::cout << "IByy: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*6 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*12
+	+ (i*N + j)*N + k + N*N*N;
+}
+
+int Problem::IBzz(int i, int j, int k)
+{
+	if (i < 0 || i > N-1)
+		std::cout << "IBzz: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N-1)
+		std::cout << "IBzz: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N-1)
+		std::cout << "IBzz: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*6 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*12
+	+ (i*N + j)*N + k + N*N*N*2;
+}
+
+int Problem::IBxy(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "IBxy: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "IBxy: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "IBxy: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*6 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*12
+	+ (i*(N+1) + j)*(N+1) + k + N*N*N*3;
+}
+
+int Problem::IBxz(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "IBxz: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "IBxz: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "IBxz: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*6 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*12
+	+ (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1);
+}
+
+int Problem::IByz(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "IByz: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "IByz: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "IByz: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*6 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*12
+	+ (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*2;
+}
+
+int Problem::IByx(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "IByx: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "IByx: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "IByx: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*6 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*12
+	+ (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*3;
+}
+
+int Problem::IBzx(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "IUzx: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "IUzx: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "IUzx: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*6 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*12
+	+ (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*4;
+}
+
+int Problem::IBzy(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "IBzy: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "IBzy: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "IBzy: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*6 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*12
+	+ (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*5;
+}
+
+int Problem::Imxy(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "Imxy: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "Imxy: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "Imxy: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*9 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*18
+	+ (i*(N+1) + j)*(N+1) + k;
+}
+
+int Problem::Imxz(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "Imxz: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "Imxz: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "Imxz: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*9 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*18
+	+ (i*(N+1) + j)*(N+1) + k + (N+1)*(N+1)*(N+1);
+}
+
+int Problem::Imyz(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "Imyz: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "Imyz: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "Imyz: wrong k = " << k << " for N = " << N << std::endl;
+	return N*N*N*9 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*18
+	+ (i*(N+1) + j)*(N+1) + k + (N+1)*(N+1)*(N+1)*2;
+}
+
 void Problem::saveVTK2D()
 {
 	
@@ -381,7 +687,6 @@ void Problem::saveVTK3D()
 
 	out << "SCALARS Stress_yy double" << std::endl;
 	out << "LOOKUP_TABLE default" << std::endl;
-	
 	for (int k = 0; k < nz; k++)
 		for (int j = 0; j < ny; j++)
 			for (int i = 0; i < nx; i++)
@@ -393,6 +698,48 @@ void Problem::saveVTK3D()
 		for (int j = 0; j < ny; j++)
 			for (int i = 0; i < nx; i++)
 				out << sol[Iszz(i,j,k)] << std::endl;
+
+	out << "SCALARS U_xx double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k < nz; k++)
+		for (int j = 0; j < ny; j++) 
+			for (int i = 0; i < nx; i++) 
+				out << sol[IUxx(i,j,k)] << std::endl;
+
+	out << "SCALARS U_yy double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k < nz; k++)
+		for (int j = 0; j < ny; j++)
+			for (int i = 0; i < nx; i++)
+				out << sol[IUyy(i,j,k)] << std::endl;
+
+	out << "SCALARS U_zz double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k < nz; k++)
+		for (int j = 0; j < ny; j++)
+			for (int i = 0; i < nx; i++)
+				out << sol[IUzz(i,j,k)] << std::endl;
+	
+	out << "SCALARS B_xx double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k < nz; k++)
+		for (int j = 0; j < ny; j++) 
+			for (int i = 0; i < nx; i++) 
+				out << sol[IBxx(i,j,k)] << std::endl;
+
+	out << "SCALARS B_yy double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k < nz; k++)
+		for (int j = 0; j < ny; j++)
+			for (int i = 0; i < nx; i++)
+				out << sol[IByy(i,j,k)] << std::endl;
+
+	out << "SCALARS B_zz double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k < nz; k++)
+		for (int j = 0; j < ny; j++)
+			for (int i = 0; i < nx; i++)
+				out << sol[IBzz(i,j,k)] << std::endl;
 
 	// Values in cell are averaged from cell nodes
 	/*out << "SCALARS Stress_xy double" << std::endl;
@@ -510,6 +857,119 @@ void Problem::saveVTK3D()
 			for (int i = 0; i <= nx; i++) 
 				out << sol[Iszy(i, j, k)] << std::endl;
 
+	out << "SCALARS U_xy double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[IUxy(i, j, k)] << std::endl;
+
+	out << "SCALARS U_xz double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[IUxz(i, j, k)] << std::endl;
+
+	
+	out << "SCALARS U_yz double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[IUyz(i, j, k)] << std::endl;
+
+	
+	out << "SCALARS U_yx double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[IUyx(i, j, k)] << std::endl;
+
+	
+	out << "SCALARS U_zx double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[IUzx(i, j, k)] << std::endl;
+
+	
+	out << "SCALARS U_zy double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[IUzy(i, j, k)] << std::endl;
+
+	out << "SCALARS B_xy double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[IBxy(i, j, k)] << std::endl;
+
+	out << "SCALARS B_xz double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[IBxz(i, j, k)] << std::endl;
+
+	
+	out << "SCALARS B_yz double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[IByz(i, j, k)] << std::endl;
+
+	
+	out << "SCALARS B_yx double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[IByx(i, j, k)] << std::endl;
+
+	
+	out << "SCALARS B_zx double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[IBzx(i, j, k)] << std::endl;
+
+	
+	out << "SCALARS B_zy double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[IBzy(i, j, k)] << std::endl;
+
+	out << "SCALARS m_xy double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[Imxy(i, j, k)] << std::endl;
+
+	out << "SCALARS m_xz double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[Imxz(i, j, k)] << std::endl;
+
+	
+	out << "SCALARS m_yz double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[Imyz(i, j, k)] << std::endl;
 	out.close();
 }
 
@@ -678,6 +1138,64 @@ void Problem::fillResidual(Residual &R)
 				}
 		}
 	}
+
+	// +=============================================================================================================+
+	// |                                                                                                             |
+	// |                                                                                                             |
+	// |                                N E W       E Q U A T I O N S                                                |
+	// |                                                                                                             |
+	// |                                                                                                             |
+	// +=============================================================================================================+
+
+	// --------------------------------- Cell loop
+	// Equations for Uxx, Uxx, Uzz:
+	//
+	// 
+	//
+	for (int i = 0; i < N; i++) {
+		for (int j = 0; j < N; j++) {
+			for(int k = 0; k < N; k++){
+				R[IUxx(i, j, k)] = Uxx(i, j, k) - 1;
+				R[IUyy(i, j, k)] = Uyy(i, j, k) - 2;
+				R[IUzz(i, j, k)] = Uzz(i, j, k) - 3;
+				R[IBxx(i, j, k)] = Bxx(i, j, k) + 1;
+				R[IByy(i, j, k)] = Byy(i, j, k) + 2;
+				R[IBzz(i, j, k)] = Bzz(i, j, k) + 3;
+			}
+		}
+	}
+
+	// --------------------------------- Node loop
+	// Equations for Uxy, Uxz, Uyz, Uyz, Uzx, Uzy:
+	//
+	// 
+	//
+	for (int i = 0; i < N+1; i++) {
+		for (int j = 0; j < N+1; j++) {
+			for (int k = 0; k < N+1; k++){
+
+				R[IUxy(i, j, k)] = Uxy(i, j, k) - 4; 
+				R[IUxz(i, j, k)] = Uxz(i, j, k) - 5; 
+				R[IUyz(i, j, k)] = Uyz(i, j, k) - 6; 
+				R[IUyx(i, j, k)] = Uyx(i, j, k) - 7; 
+				R[IUzx(i, j, k)] = Uzx(i, j, k) - 8; 
+				R[IUzy(i, j, k)] = Uzy(i, j, k) - 9; 
+
+				R[IBxy(i, j, k)] = Bxy(i, j, k) + 4; 
+				R[IBxz(i, j, k)] = Bxz(i, j, k) + 5; 
+				R[IByz(i, j, k)] = Byz(i, j, k) + 6; 
+				R[IByx(i, j, k)] = Byx(i, j, k) + 7;
+				R[IBzx(i, j, k)] = Bzx(i, j, k) + 8;
+				R[IBzy(i, j, k)] = Bzy(i, j, k) + 9; 
+
+				
+				R[Imxy(i, j, k)] = mxy(i, j, k) - 111; 
+				R[Imxz(i, j, k)] = mxz(i, j, k) - 222; 
+				R[Imyz(i, j, k)] = myz(i, j, k) - 333; 
+			}
+		}
+	}
+
 	//std::cout << "System is assembled" << std::endl;
 }
 
@@ -688,7 +1206,8 @@ void Problem::run()
 	// Node   ((N+1)*(N+1)):     1
 	// Face_x ( N   *(N+1)):     1
 	// Face_y ( N   *(N+1)):     1
-	int tot_size = N*N*N*3 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*6;
+	//int tot_size = N*N*N*3 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*6;
+	int tot_size = N*N*N*9 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*21;
 	std::cout << "Total number of unknowns: " << tot_size << std::endl;
 	Residual R("residual", 0, tot_size);
 	sol = Sparse::Vector("solution", 0, tot_size);
