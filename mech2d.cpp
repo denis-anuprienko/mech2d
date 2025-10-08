@@ -53,7 +53,7 @@ private:
 	// =====================================================================================================
 	// INMOST functionality
 	/// Solution vector that contains all the unknowns: 
-	/// sigma_xx, sigma_yy, sigma_zz, sigma_xy, sigma_xz, sigma_yz, u_x, u_y, u_z
+	/// sigma_xx, sigma_yy, sigma_zz, sigma_xy, sigma_xz, sigma_yz, sigma_yx, sigma_zx, sigma_zy, u_x, u_y, u_z
 	INMOST::Sparse::Vector sol;
 	/// Linear solver for systems with Jacobian matrix
 	//INMOST::Solver S;
@@ -69,6 +69,9 @@ private:
 	int Isxy(int i, int j, int k); // sigma_xy
 	int Isxz(int i, int j, int k); // sigma_xz
 	int Isyz(int i, int j, int k); // sigma_yz
+	int Isyx(int i, int j, int k); // sigma_yx
+	int Iszx(int i, int j, int k); // sigma_zx
+	int Iszy(int i, int j, int k); // sigma_zy
 	int Iux(int i, int j, int k);  // u_x
 	int Iuy(int i, int j, int k);  // u_y
 	int Iuz(int i, int j, int k);  // u_z
@@ -82,6 +85,9 @@ private:
 	unknown sxy(int i, int j, int k) { return unknown(sol[Isxy(i,j,k)], Isxy(i,j,k)); }
 	unknown sxz(int i, int j, int k) { return unknown(sol[Isxz(i,j,k)], Isxz(i,j,k)); }
 	unknown syz(int i, int j, int k) { return unknown(sol[Isyz(i,j,k)], Isyz(i,j,k)); }
+	unknown syx(int i, int j, int k) { return unknown(sol[Isyx(i,j,k)], Isyx(i,j,k)); }
+	unknown szx(int i, int j, int k) { return unknown(sol[Iszx(i,j,k)], Iszx(i,j,k)); }
+	unknown szy(int i, int j, int k) { return unknown(sol[Iszy(i,j,k)], Iszy(i,j,k)); }
 	unknown ux(int i, int j, int k)  { return unknown(sol[Iux(i,j,k)],  Iux(i,j,k));  }
 	unknown uy(int i, int j, int k)  { return unknown(sol[Iuy(i,j,k)],  Iuy(i,j,k));  }
 	unknown uz(int i, int j, int k)  { return unknown(sol[Iuz(i,j,k)],  Iuz(i,j,k));  }
@@ -170,6 +176,39 @@ int Problem::Isyz(int i, int j, int k)
 	return (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*2;
 }
 
+int Problem::Isyx(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "Isyx: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "Isyx: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "Isyx: wrong k = " << k << " for N = " << N << std::endl;
+	return (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*3;
+}
+
+int Problem::Iszx(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "Iszx: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "Iszx: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "Iszx: wrong k = " << k << " for N = " << N << std::endl;
+	return (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*4;
+}
+
+int Problem::Iszy(int i, int j, int k)
+{
+	if (i < 0 || i > N)
+		std::cout << "Iszy: wrong i = " << i << " for N = " << N << std::endl;
+	if (j < 0 || j > N)
+		std::cout << "Iszy: wrong j = " << j << " for N = " << N << std::endl;
+	if (k < 0 || k > N)
+		std::cout << "Iszy: wrong k = " << k << " for N = " << N << std::endl;
+	return (i*(N+1) + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*5;
+}
+
 int Problem::Iux(int i, int j, int k)
 {
 	if (i < 0 || i > N)
@@ -178,7 +217,7 @@ int Problem::Iux(int i, int j, int k)
 		std::cout << "Iux: wrong j = " << j << " for N = " << N << std::endl;
 	if (k < 0 || k > N-1)
 		std::cout << "Iux: wrong k = " << k << " for N = " << N << std::endl;
-	return (i*N + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*3;
+	return (i*N + j)*(N+1) + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*6;
 }
 
 int Problem::Iuy(int i, int j, int k)
@@ -189,7 +228,7 @@ int Problem::Iuy(int i, int j, int k)
 		std::cout << "Iuy: wrong j = " << j << " for N = " << N << std::endl;
 	if (k < 0 || k > N-1)
 		std::cout << "Iuy: wrong k = " << k << " for N = " << N << std::endl;
-	return (i*(N+1) + j)*N + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*3 + N*N*(N+1);
+	return (i*(N+1) + j)*N + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*6 + N*N*(N+1);
 }
 
 int Problem::Iuz(int i, int j, int k)
@@ -200,7 +239,7 @@ int Problem::Iuz(int i, int j, int k)
 		std::cout << "Iuz: wrong j = " << j << " for N = " << N << std::endl;
 	if (k < 0 || k > N)
 		std::cout << "Iuz: wrong k = " << k << " for N = " << N << std::endl;
-	return (i*N + j)*N + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*3 + N*N*(N+1)*2;
+	return (i*N + j)*N + k + N*N*N*3 + (N+1)*(N+1)*(N+1)*6 + N*N*(N+1)*2;
 }
 
 void Problem::saveVTK2D()
@@ -396,7 +435,7 @@ void Problem::saveVTK3D()
 					uxijm1km1 = sol[Iux(i,j-1,k-1)];
 
 					
-				double uyijk = 0.0, uyim1jk = 0.0, uyijkm1, uyim1jkm1;
+				double uyijk = 0.0, uyim1jk = 0.0, uyijkm1 = 0.0, uyim1jkm1 = 0.0;
 				if (i < nx && j < ny && k < nz)
 					uyijk = sol[Iuy(i,j,k)];
 				if (i > 0 && j < ny && k < nz)
@@ -446,6 +485,30 @@ void Problem::saveVTK3D()
 		for (int j = 0; j <= ny; j++)
 			for (int i = 0; i <= nx; i++) 
 				out << sol[Isyz(i, j, k)] << std::endl;
+
+	
+	out << "SCALARS Stress_yx double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[Isyx(i, j, k)] << std::endl;
+
+	
+	out << "SCALARS Stress_zx double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[Iszx(i, j, k)] << std::endl;
+
+	
+	out << "SCALARS Stress_zy double" << std::endl;
+	out << "LOOKUP_TABLE default" << std::endl;
+	for (int k = 0; k <= nz; k++)
+		for (int j = 0; j <= ny; j++)
+			for (int i = 0; i <= nx; i++) 
+				out << sol[Iszy(i, j, k)] << std::endl;
 
 	out.close();
 }
@@ -544,6 +607,9 @@ void Problem::fillResidual(Residual &R)
 				R[Isxy(i, j, k)] = sxy(i, j, k) - mu * (duxdy + duydx); // sxy = 2*mu*eps_xy == mu * (dux/dy + duy/dx)
 				R[Isxz(i, j, k)] = sxz(i, j, k) - mu * (duxdz + duzdx); // sxz = 2*mu*eps_xz == mu * (dux/dz + duz/dx)
 				R[Isyz(i, j, k)] = syz(i, j, k) - mu * (duydz + duzdy); // syz = 2*mu*eps_yz == mu * (duy/dz + duz/dy)
+				R[Isyx(i, j, k)] = syx(i, j, k) - mu * (duxdy + duydx); // syx = 2*mu*eps_yx == mu * (dux/dy + duy/dx)
+				R[Iszx(i, j, k)] = szx(i, j, k) - mu * (duxdz + duzdx); // szx = 2*mu*eps_zx == mu * (dux/dz + duz/dx)
+				R[Iszy(i, j, k)] = szy(i, j, k) - mu * (duydz + duzdy); // szy = 2*mu*eps_zy == mu * (duy/dz + duz/dy)
 				
 				//R[Isxy(i,j,k)] /= E;
 				//R[Isxz(i,j,k)] /= E;
@@ -561,9 +627,9 @@ void Problem::fillResidual(Residual &R)
 			for (int k = 0; k < N; k++){
 				if (i > 0 && i < N && j > 0 && j < N-1 && k > 0 && k < N-1) {
 					variable dsxxdx = (sxx(i, j,   k  ) - sxx(i-1, j, k)) / dx;
-					variable dsxydy = (sxy(i, j+1, k  ) - sxy(i,   j, k)) / dy;
-					variable dsxzdz = (sxz(i, j,   k+1) - sxz(i,   j, k)) / dz;
-					R[Iux(i, j, k)] = dsxxdx + dsxydy + dsxzdz - 0.0;
+					variable dsyxdy = (syx(i, j+1, k  ) - syx(i,   j, k)) / dy;
+					variable dszxdz = (szx(i, j,   k+1) - szx(i,   j, k)) / dz;
+					R[Iux(i, j, k)] = dsxxdx + dsyxdy + dszxdz - 0.0;
 				}
 				else
 					R[Iux(i, j, k)] = ux(i,j,k);
@@ -583,8 +649,8 @@ void Problem::fillResidual(Residual &R)
 				if (i > 0 && i < N-1 && j > 0 && j < N && k > 0 && k < N-1) {
 					variable dsxydx = (sxy(i+1, j, k  ) - sxy(i, j,   k)) / dx;
 					variable dsyydy = (syy(i,   j, k  ) - syy(i, j-1, k)) / dy;
-					variable dsyzdz = (syz(i,   j, k+1) - syz(i, j,   k)) / dz;
-					R[Iuy(i, j, k)] = dsxydx + dsyydy + dsyzdz - 0.0;
+					variable dszydz = (szy(i,   j, k+1) - szy(i, j,   k)) / dz;
+					R[Iuy(i, j, k)] = dsxydx + dsyydy + dszydz - 0.0;
 				}
 				else
 					R[Iuy(i, j, k)] = uy(i,j,k);
@@ -622,7 +688,7 @@ void Problem::run()
 	// Node   ((N+1)*(N+1)):     1
 	// Face_x ( N   *(N+1)):     1
 	// Face_y ( N   *(N+1)):     1
-	int tot_size = N*N*N*3 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*3;
+	int tot_size = N*N*N*3 + N*N*(N+1)*3 + (N+1)*(N+1)*(N+1)*6;
 	std::cout << "Total number of unknowns: " << tot_size << std::endl;
 	Residual R("residual", 0, tot_size);
 	sol = Sparse::Vector("solution", 0, tot_size);
